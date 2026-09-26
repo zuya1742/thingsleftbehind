@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Things left behind</title>
+  <!-- 갈무리 폰트 불러오기 (Galmuri7, Galmuri9, Galmuri11) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+  <!-- Excel 파싱용 SheetJS 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Galmuri7', sans-serif;
+      cursor: url('DD_1/dd_cursor1.png'), auto;
+    }
+
+    html:active, body:active {
+      cursor: url('DD_1/dd_cursor2.png'), auto !important;
+    }
+
+    /* 1920x1080 고정 캔버스 컨테이너 */
+    #canvas-container {
+      position: absolute;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      transform-origin: center center;
+      background-color: #000000;
+      cursor: url('DD_1/dd_cursor1.png'), auto;
+    }
+
+    #canvas-container:active {
+      cursor: url('DD_1/dd_cursor2.png'), auto !important;
+    }
+
+    /* 배경 이미지 */
+    #bg-img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(2.4);
+      transform-origin: center center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* 1. 화면 전체 검정 투명도 70% 오버레이 사각형 */
+    #screen-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      background-color: #000000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.7s ease;
+      z-index: 90;
+    }
+
+    #screen-overlay.show {
+      opacity: 0.7;
+    }
+
+    /* 중앙 침대 이미지 */
+    #bed-img {
+      position: absolute;
+      top: 50%;
+      left: calc(50% + 8px);
+      width: auto;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      transform: translate(-50%, -50%) scale(2.4);
+      transform-origin: center center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 10;
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+    }
+
+    #bed-img:active {
+      filter: brightness(0.75);
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    /* 침대 바로 위 중앙 링 이미지 */
+    #ring-img {
+      position: absolute;
+      left: 50%;
+      width: auto;
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 15;
+      transform-origin: center center;
+      transform: translate(-50%, -100%) scale(2.4);
+      animation: ringFloat 2s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes ringFloat {
+      0%, 100% {
+        transform: translate(-50%, -100%) scale(2.4) translateY(0);
+      }
+      50% {
+        transform: translate(-50%, -100%) scale(2.4) translateY(-5px);
+      }
+    }
+
+    /* 첫 화면 이미지 트리거 위치 */
+    #message-trigger {
+      position: absolute;
+      left: 960px;
+      top: 160px;
+      width: auto;
+      height: auto;
+      z-index: 25;
+      transform: translateX(-50%) scale(2.4);
+      transform-origin: center center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      animation: messageFloat 3s ease-in-out infinite;
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+      transition: opacity 0.4s ease;
+    }
+
+    #message-trigger:active {
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    @keyframes messageFloat {
+      0%, 100% {
+        transform: translateX(-50%) scale(2.4) translateY(0);
+      }
+      50% {
+        transform: translateX(-50%) scale(2.4) translateY(-6px);
+      }
+    }
+
+    #message-trigger.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* 팝업창 스타일 */
+    #message-popup {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 650px;
+      height: 900px;
+      transform: translate(-50%, -50%);
+      background-color: #FFFFFF;
+      border: 2.4px solid #000000;
+      z-index: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      line-height: 2.4;
+      color: #000000;
+      padding: 60px;
+      box-sizing: border-box;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      overflow-y: auto;
+      cursor: url('DD_1/dd_cursor1.png'), auto;
+    }
+
+    #message-popup.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* 경고 텍스트 박스 */
+    #alert-box {
+      position: absolute;
+      top: calc(28% - 63px);
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #FFFFFF;
+      color: #000000;
+      padding: 3px 14px;
+      border: none;
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      font-weight: normal;
+      line-height: 1.1;
+      pointer-events: none;
+      z-index: 30;
+      opacity: 0;
+      transition: opacity 0.1s ease-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    #alert-box.show {
+      opacity: 1;
+      transition: none;
+    }
+
+    /* 드랍되는 유품 아이템 */
+    .dropped-item {
+      position: absolute;
+      width: auto;
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 20;
+      transform-origin: center center;
+      transform: translate(-50%, -50%) scale(2.4);
+      transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+    }
+
+    .dropped-item:active {
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    .dropped-item.shaking {
+      animation: shakeAnim 0.5s ease;
+    }
+
+    @keyframes shakeAnim {
+      0%, 100% { transform: translate(-50%, -50%) translate(var(--drop-x), var(--drop-y)) scale(2.4) rotate(var(--rot)) translateX(0); }
+      20%, 60% { transform: translate(-50%, -50%) translate(var(--drop-x), var(--drop-y)) scale(2.4) rotate(var(--rot)) translateX(-3px); }
+      40%, 80% { transform: translate(-50%, -50%) translate(var(--drop-x), var(--drop-y)) scale(2.4) rotate(var(--rot)) translateX(3px); }
+    }
+
+    /* 마우스 호버 툴팁 박스 */
+    #item-tooltip {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.85);
+      color: #FFFFFF;
+      padding: 4px 8px;
+      font-family: 'Galmuri7', sans-serif;
+      font-size: 16px;
+      line-height: 1.2;
+      pointer-events: none;
+      z-index: 500;
+      display: none;
+      white-space: nowrap;
+    }
+
+    /* 아이템 클릭 시 우하단에 뜨는 메뉴 */
+    #item-menu {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.85);
+      color: #FFFFFF;
+      padding: 4px 8px;
+      font-family: 'Galmuri7', sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      pointer-events: auto;
+      z-index: 501;
+      display: none;
+      white-space: nowrap;
+    }
+
+    #item-menu .menu-item {
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+      padding: 2px 4px;
+    }
+
+    #item-menu .menu-item:active {
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    #item-menu .menu-item:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 슬라이드 박스 패널 (z-index: 100) */
+    #box-panel {
+      position: absolute;
+      top: 515px; 
+      left: 960px;
+      width: 1870px;
+      height: 980px;
+      background-color: transparent;
+      border: none;
+      z-index: 100;
+      transform: translate(-50%, -50%) translateX(120%);
+      transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #box-panel.open {
+      transform: translate(-50%, -50%) translateX(0);
+    }
+
+    #box-bg-img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(2.4);
+      transform-origin: center center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #inner-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      transform: translate(-50%, -50%);
+      background-color: transparent;
+      border: none;
+      overflow: visible;
+      display: flex;
+      z-index: 2;
+    }
+
+    /* "선물받음" 뱃지 스타일 */
+    #gift-badge {
+      position: absolute;
+      top: 40.4px;
+      left: 640px;
+      width: 86px;
+      height: 26px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 86 26' shape-rendering='crispEdges'%3E%3Crect x='3' y='0' width='80' height='1' fill='%23000000'/%3E%3Crect x='2' y='1' width='82' height='1' fill='%23000000'/%3E%3Crect x='1' y='2' width='84' height='1' fill='%23000000'/%3E%3Crect x='0' y='3' width='86' height='20' fill='%23000000'/%3E%3Crect x='1' y='23' width='84' height='1' fill='%23000000'/%3E%3Crect x='2' y='24' width='82' height='1' fill='%23000000'/%3E%3Crect x='3' y='25' width='80' height='1' fill='%23000000'/%3E%3C/svg%3E");
+      background-size: 86px 26px;
+      background-color: transparent;
+      border-radius: 0;
+      color: #FFFFFF;
+      font-family: 'Galmuri7', sans-serif;
+      font-size: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 350;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #index-group {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: translateY(-120%);
+      transition: transform 1.0s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+      z-index: 10;
+    }
+
+    #box-panel.open #index-group {
+      transform: translateY(0);
+      transition-delay: 0.2s; 
+    }
+
+    #box-panel.closing-index #index-group {
+      transform: translateY(-120%);
+      transition-delay: 0s; 
+    }
+
+    #index-bg-img {
+      position: absolute;
+      top: 0;
+      left: 20px;
+      transform: scale(2.4);
+      transform-origin: top left;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .index-container {
+      position: absolute;
+      top: 55px;
+      left: 22.4px;
+      width: 260px;
+      height: 720px;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Galmuri9', sans-serif;
+      text-align: left;
+      color: #000000;
+      z-index: 10;
+      background-color: transparent;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .index-scroll-area {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      overflow-y: auto;
+      background-color: transparent;
+      box-sizing: border-box;
+    }
+
+    .index-scroll-area::-webkit-scrollbar {
+      display: none;
+    }
+
+    .index-block {
+      display: flex;
+      flex-direction: column;
+      border-bottom: 2.4px solid #000000;
+      background-color: transparent;
+      box-sizing: border-box;
+    }
+
+    .index-title, .tree-title, .tree-leaf {
+      position: relative;
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+      user-select: none;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+    }
+
+    .index-title:active, .tree-title:active, .tree-leaf:active {
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    .index-title::before,
+    .tree-title::before,
+    .tree-leaf::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: transparent;
+      transition: background-color 0.15s ease;
+      z-index: -1;
+    }
+
+    .index-title {
+      font-size: 16px;
+      line-height: 1.2;
+      padding: 10px;
+    }
+
+    .index-title:hover::before {
+      background-color: rgba(240, 240, 240, 0.8);
+    }
+
+    .index-content {
+      display: none;
+      background-color: transparent;
+      font-size: 16px;
+      line-height: 1.3;
+      padding: 4px 0 8px 0;
+      border-top: 1.2px dashed #000000;
+      box-sizing: border-box;
+    }
+
+    .index-block.active > .index-content {
+      display: block;
+    }
+
+    .tree-node {
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    .tree-title {
+      padding: 6px 10px;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .tree-title:hover::before {
+      background-color: rgba(245, 245, 245, 0.8);
+    }
+
+    .tree-children {
+      display: none;
+    }
+
+    .tree-node.open > .tree-children {
+      display: block;
+    }
+
+    .tree-leaf {
+      padding: 6px 10px;
+      font-size: 16px;
+      line-height: 1.2;
+      color: #000000;
+    }
+
+    .tree-leaf:hover::before {
+      background-color: rgba(239, 239, 239, 0.8);
+    }
+
+    .n-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='4' y='0' width='8' height='1' fill='%23000000'/%3E%3Crect x='2' y='1' width='12' height='1' fill='%23000000'/%3E%3Crect x='1' y='2' width='14' height='2' fill='%23000000'/%3E%3Crect x='0' y='4' width='16' height='8' fill='%23000000'/%3E%3Crect x='1' y='12' width='14' height='2' fill='%23000000'/%3E%3Crect x='2' y='14' width='12' height='1' fill='%23000000'/%3E%3Crect x='4' y='15' width='8' height='1' fill='%23000000'/%3E%3C/svg%3E");
+      background-size: 16px 16px;
+      background-color: transparent;
+      border-radius: 0;
+      font-family: 'Galmuri7', sans-serif;
+      font-size: 10px;
+      line-height: 1;
+      color: #FFFFFF;
+      margin-left: 6px;
+      flex-shrink: 0;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .indent-0 { padding-left: 10px; }
+    .indent-1 { padding-left: 10px; }
+    .indent-2 { padding-left: 24px; }
+    .indent-3 { padding-left: 38px; }
+    .indent-4 { padding-left: 52px; }
+
+    .detail-left {
+      position: absolute;
+      top: 55px;
+      left: 332px;
+      width: 700px;
+      height: 720px;
+      box-sizing: border-box;
+      overflow: visible;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
+    }
+
+    .detail-left.show-text {
+      opacity: 1;
+    }
+
+    .detail-text-group {
+      position: relative;
+      left: 15px;
+      top: -5px;
+    }
+
+    .item-path {
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      color: #000000;
+      margin-top: 10px;
+      margin-bottom: 7px;
+      word-break: keep-all;
+    }
+
+    .item-name {
+      font-family: 'Galmuri11', sans-serif;
+      font-weight: bold;
+      font-size: 30px;
+      line-height: 1.3;
+      color: #000000;
+      text-align: left;
+      padding: 0;
+      word-break: keep-all;
+      width: 100%;
+    }
+
+    /* 팝업 아이템 이미지 위치 스타일 */
+    .item-image-wrapper {
+      position: absolute;
+      top: 425px;
+      left: 370px;
+      width: 300px;
+      height: 300px;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .item-image-wrapper img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transform: scale(3.0);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* 아이템 상태 정보 그룹 스타일 */
+    #item-status-group {
+      position: absolute;
+      top: 826px;
+      left: 370px;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      font-family: 'Galmuri7', sans-serif;
+      font-size: 14px;
+      color: #000000;
+      z-index: 15;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* 상태 항목 및 아이콘 스타일 */
+    .status-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status-icon {
+      width: auto;
+      height: 20px;
+      margin-bottom: 7px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      transform: scale(2.4);
+      transform-origin: center bottom;
+    }
+
+    .status-text {
+      font-family: 'Galmuri7', sans-serif;
+      font-size: 14px;
+      line-height: 14px;
+      color: #000000;
+    }
+
+    .status-divider {
+      width: 2.4px;
+      height: 16px;
+      background-color: #000000;
+    }
+
+    #dd-note-img {
+      position: absolute;
+      right: -580px;
+      bottom: 0;
+      z-index: 200;
+      pointer-events: none;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      transform-origin: 100% 100%;
+      transform: scale(2.4) rotate(-90deg);
+      transition: transform 1.0s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+    }
+
+    #box-panel.open ~ #dd-note-img,
+    #canvas-container.panel-open #dd-note-img {
+      transform: scale(2.4) rotate(0deg);
+      transition-delay: 0.2s;
+    }
+
+    #box-panel.closing-index ~ #dd-note-img {
+      transform: scale(2.4) rotate(-90deg);
+      transition-delay: 0s;
+    }
+
+    .detail-right-note-wrapper {
+      position: absolute;
+      left: 1120px; 
+      top: 70px;
+      width: 730px; 
+      height: 900px;
+      box-sizing: border-box;
+      z-index: 300;
+      color: #000000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
+      overflow: hidden;
+    }
+
+    .detail-right-note-wrapper.show-text {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .detail-right-note-wrapper::-webkit-scrollbar {
+      display: none;
+    }
+
+    #item-section {
+      position: absolute;
+      top: 40px;
+      left: 25px;
+      right: 55px;
+      max-height: 390px;
+      overflow-y: auto;
+    }
+
+    #item-section::-webkit-scrollbar {
+      display: none;
+    }
+
+    .label-item {
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      color: #000000;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+    }
+
+    .item-real-name {
+      font-family: 'Galmuri11', sans-serif;
+      font-weight: bold;
+      font-size: 20px;
+      line-height: 1.3;
+      color: #000000;
+      margin-bottom: 16px;
+    }
+
+    .item-comment {
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #000000;
+      white-space: pre-wrap;
+      word-break: keep-all;
+    }
+
+    .note-divider {
+      position: absolute;
+      top: 435px;
+      left: 25px;
+      right: 55px;
+      height: 2.4pt;
+      background-color: #000000;
+      display: none;
+    }
+
+    #quest-section {
+      position: absolute;
+      top: calc(435px + 2.4pt + 28px);
+      left: 25px;
+      right: 180px; 
+      bottom: 40px;
+      overflow-y: auto;
+    }
+
+    #quest-section::-webkit-scrollbar {
+      display: none;
+    }
+
+    .label-quest {
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      color: #000000;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .quest-title {
+      font-family: 'Galmuri11', sans-serif;
+      font-weight: bold;
+      font-size: 20px;
+      line-height: 1.3;
+      color: #000000;
+      margin-bottom: 16px;
+    }
+
+    .quest-desc {
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #000000;
+      white-space: pre-wrap;
+      word-break: keep-all;
+    }
+
+    .quest-detail {
+      font-family: 'Galmuri9', sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #000000;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      word-break: keep-all;
+    }
+
+    /* 하단 바 */
+    #bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 1920px;
+      height: 50px;
+      background-color: #000000;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+
+    /* 편지 버튼 (좌측 끝) */
+    #letter-btn {
+      width: 30px;
+      height: 30px;
+      background-color: transparent;
+      border: none;
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    #letter-btn:active {
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    #letter-btn img {
+      width: auto;
+      height: auto;
+      transform: scale(2);
+      transform-origin: center center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      pointer-events: none;
+    }
+
+    /* 우측 박스 메뉴 버튼 */
+    #toggle-btn {
+      width: 30px;
+      height: 30px;
+      background-color: transparent;
+      border: none;
+      cursor: url('DD_1/dd_cursor1-1.png'), pointer !important;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    #toggle-btn:active {
+      cursor: url('DD_1/dd_cursor2.png'), pointer !important;
+    }
+
+    #toggle-btn img {
+      width: auto;
+      height: auto;
+      transform: scale(2);
+      transform-origin: center center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <img id="bg-img" src="DD_1/DD_background.png" alt="Background">
+    <div id="screen-overlay"></div>
+    <img id="bed-img" src="DD_1/DD_bed.png" alt="DD Bed">
+    <img id="ring-img" src="DD_1/dd_ring.png" alt="Ring">
+    
+    <!-- 첫 화면 이미지 트리거 -->
+    <img id="message-trigger" src="DD_1/dd_message_animation/1.png" alt="Message Trigger">
+
+    <!-- 팝업창 -->
+    <div id="message-popup">유서
+
+20XX년 XX월 XX일
+
+부디 제가 어떠한 미련도 없이 삶을 떠날 수 있었기를 바랍니다.
+그렇지만 저는 가보지 않은 길과 해보지 않은 것들에 대해
+끊임없이 아쉬워하고 불안해하는 사람이었기 때문에
+실제로 그러기는 쉽지 않았을 것이라는 걸 알고 있습니다. 
+
+…
+
+대부분 무난했고, 가끔 끔찍했으며, 종종 기뻤습니다.
+그 사이에 그런 삶을 사랑하고자 애썼던 날들이 있었습니다.
+스스로를 있는 그대로 사랑하기가 힘들어서
+그 외의 것들에 온 신경을 쏟았습니다. 
+좋아하는 것을 많이 만들고자 노력했습니다. 
+남은 흔적들 하나하나에 담긴 이야기와 저의 바람을
+간략하게나마 남겨둡니다.
+실례가 되지 않는다면, 
+저의 마지막 부탁을 들어주시면 감사하겠습니다.</div>
+
+    <div id="alert-box">...</div>
+    <div id="item-tooltip"></div>
+    <div id="item-menu">
+      <div class="menu-item" data-action="store">보관하기</div>
+      <div class="menu-item" data-action="discard">버리기</div>
+      <div class="menu-item" data-action="cancel">취소</div>
+    </div>
+
+    <!-- 박스 레이어 (z-index: 100) -->
+    <div id="box-panel">
+      <img id="box-bg-img" src="DD_1/DD_box.png" alt="Box Background">
+
+      <div id="inner-box">
+        <div id="index-group">
+          <img id="index-bg-img" src="DD_1/DD_index.png" alt="Index Background">
+
+          <div class="index-container">
+            <div class="index-scroll-area">
+              <div class="index-block"><div class="index-title">가전 및 디지털</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">문구</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">생활용품</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">악기</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">앨범 및 DVD</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">오타쿠 굿즈</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">일반 인형</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">일반 키링</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">지류 및 인쇄물</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">책</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">취미용품</div><div class="index-content"></div></div>
+              <div class="index-block"><div class="index-title">패션잡화</div><div class="index-content"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 좌측 텍스트 그룹 -->
+        <div class="detail-left" id="detail-left">
+          <div class="detail-text-group">
+            <div class="item-path" id="view-path"></div>
+            <div class="item-name" id="view-name"></div>
+          </div>
+          <div class="item-image-wrapper">
+            <img id="view-image" src="" alt="" style="display: none;">
+          </div>
+          <!-- 아이템 상태 정보 그룹 -->
+          <div id="item-status-group">
+            <div class="status-item">
+              <img id="status-sale-icon" class="status-icon" src="" alt="" style="display: none;">
+              <span class="status-text" id="status-sale">???</span>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+              <img id="status-second-gift-icon" class="status-icon" src="" alt="" style="display: none;">
+              <span class="status-text" id="status-second-gift">???</span>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+              <img id="status-discard-icon" class="status-icon" src="" alt="" style="display: none;">
+              <span class="status-text" id="status-discard">???</span>
+            </div>
+          </div>
+          <!-- "선물받음" 뱃지 -->
+          <div id="gift-badge">선물받음</div>
+        </div>
+      </div>
+    </div>
+
+    <img id="dd-note-img" src="DD_1/DD_note.png" alt="DD Note">
+
+    <div class="detail-right-note-wrapper" id="detail-right-note">
+      <div id="item-section">
+        <div class="label-item" id="view-label-item" style="display: none;">ITEM:</div>
+        <div class="item-real-name" id="view-real-name"></div>
+        <div class="item-comment" id="view-comment"></div>
+      </div>
+
+      <div class="note-divider" id="view-divider"></div>
+
+      <div id="quest-section">
+        <div class="label-quest" id="view-label-quest" style="display: none;">QUEST:</div>
+        <div class="quest-title" id="view-quest-title"></div>
+        <div class="quest-desc" id="view-quest-desc"></div>
+        <div class="quest-detail" id="view-quest-detail"></div>
+      </div>
+    </div>
+
+    <!-- 하단 바 -->
+    <div id="bottom-bar">
+      <button id="letter-btn" aria-label="메시지 다시 보기">
+        <img src="DD_1/dd_letter.png" alt="Letter">
+      </button>
+      <button id="toggle-btn" aria-label="박스 패널 열기">
+        <img src="DD_1/dd_boxmenu.png" alt="Box Menu">
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let itemList = [];
+    let remainingItemList = [];
+
+    const bedImg = document.getElementById('bed-img');
+    const ringImg = document.getElementById('ring-img');
+    const alertBox = document.getElementById('alert-box');
+    const container = document.getElementById('canvas-container');
+    const screenOverlay = document.getElementById('screen-overlay');
+    const tooltip = document.getElementById('item-tooltip');
+    const itemMenu = document.getElementById('item-menu');
+    const boxPanel = document.getElementById('box-panel');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const letterBtn = document.getElementById('letter-btn');
+    const detailLeft = document.getElementById('detail-left');
+    const detailRightNote = document.getElementById('detail-right-note');
+    const messageTrigger = document.getElementById('message-trigger');
+    const messagePopup = document.getElementById('message-popup');
+
+    let isCooldown = false;
+    let clickTimes = [];
+    let alertTimeout = null;
+    let isHoveringItem = false;
+    let isHoveringMenu = false;
+    let currentActiveItem = null;
+    let isMessageAnimating = false;
+
+    const itemDataMap = {};
+    const fullDataStore = [];
+    const placedBounds = [];
+
+    const storedItemIds = new Set();
+    const newStoredItemIds = new Set();
+    let globalCategoryMap = {};
+
+    function updateRingPosition() {
+      const bedH = (bedImg.naturalHeight || 176) * 2.4;
+      ringImg.style.top = `calc(50% - ${bedH / 2}px)`;
+    }
+
+    function hideMenuAndTooltip() {
+      itemMenu.style.display = 'none';
+      tooltip.style.display = 'none';
+      isHoveringItem = false;
+      isHoveringMenu = false;
+      currentActiveItem = null;
+    }
+
+    function checkHideTooltipAndMenu() {
+      setTimeout(() => {
+        if (!isHoveringItem && !isHoveringMenu) {
+          hideMenuAndTooltip();
+        }
+      }, 50);
+    }
+
+    function showAlert(text, duration = 1000) {
+      if (alertTimeout) clearTimeout(alertTimeout);
+      alertBox.textContent = text;
+      alertBox.classList.add('show');
+      alertTimeout = setTimeout(() => {
+        alertBox.classList.remove('show');
+      }, duration);
+    }
+
+    // 애니메이션 프레임 사전 로드
+    const messageAnimationFrames = [];
+    for (let i = 1; i <= 5; i++) {
+      const img = new Image();
+      img.src = `DD_1/dd_message_animation/${i}.png`;
+      messageAnimationFrames.push(img);
+    }
+
+    messageTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isMessageAnimating || messageTrigger.classList.contains('fade-out')) return;
+      isMessageAnimating = true;
+
+      let currentFrame = 0;
+      const frames = [
+        'DD_1/dd_message_animation/1.png',
+        'DD_1/dd_message_animation/2.png',
+        'DD_1/dd_message_animation/3.png',
+        'DD_1/dd_message_animation/4.png',
+        'DD_1/dd_message_animation/5.png'
+      ];
+
+      const frameInterval = setInterval(() => {
+        currentFrame++;
+        if (currentFrame < frames.length) {
+          messageTrigger.src = frames[currentFrame];
+        } else {
+          clearInterval(frameInterval);
+          messageTrigger.classList.add('fade-out');
+          messagePopup.classList.add('show');
+          isMessageAnimating = false;
+        }
+      }, 100);
+    });
+
+    // 하단 편지 버튼 클릭 시 메시지 팝업 다시 출력
+    letterBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      messagePopup.classList.add('show');
+    });
+
+    messagePopup.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (messagePopup.classList.contains('show')) {
+        messagePopup.classList.remove('show');
+      }
+
+      if (boxPanel.classList.contains('open')) {
+        closeBoxPanel();
+      }
+      hideMenuAndTooltip();
+    });
+
+    function adjustIndexContainerWidth() {
+      const indexBgImg = document.getElementById('index-bg-img');
+      const indexContainer = document.querySelector('.index-container');
+      if (indexBgImg && indexBgImg.naturalWidth) {
+        const exactWidth = (indexBgImg.naturalWidth * 2.4) - 4.8;
+        indexContainer.style.width = `${exactWidth}px`;
+        indexContainer.style.left = '22.4px';
+      }
+    }
+
+    function initAccordion() {
+      const blocks = document.querySelectorAll('.index-block');
+      blocks.forEach(block => {
+        const title = block.querySelector('.index-title');
+        title.addEventListener('click', () => {
+          const isOpen = block.classList.contains('active');
+          blocks.forEach(b => b.classList.remove('active'));
+          if (!isOpen) {
+            block.classList.add('active');
+          }
+        });
+      });
+    }
+
+    function checkImageExists(url) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
+    }
+
+    async function loadExcelData() {
+      try {
+        const response = await fetch(`DD_1/DD_list.xlsx?t=${Date.now()}`);
+        if (!response.ok) throw new Error('Excel 파일 로드 실패');
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const categoryMap = {};
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length === 0) continue;
+
+          const rowData = {
+            id: row[0] ? String(row[0]).trim() : '',
+            category: row[1] ? String(row[1]).trim() : '',
+            sub1: row[2] ? String(row[2]).trim() : '',
+            sub2: row[3] ? String(row[3]).trim() : '',
+            sub3: row[4] ? String(row[4]).trim() : '',
+            realName: row[5] ? String(row[5]).trim() : '',
+            name: row[6] ? String(row[6]).trim() : '',
+            comment: row[7] ? String(row[7]).trim() : '',
+            questTitle: row[8] ? String(row[8]).trim() : '',
+            questDesc: row[9] ? String(row[9]).trim() : '',
+            questDetail: row[10] ? String(row[10]).trim() : '',
+            gift: row[11] ? String(row[11]).trim().toLowerCase() : '',
+            sale: row[13] ? String(row[13]).trim().toLowerCase() : '',       // N열 (13)
+            secondGift: row[12] ? String(row[12]).trim().toLowerCase() : '', // M열 (12) - 순서 교체 반영
+            discardable: row[14] ? String(row[14]).trim().toLowerCase() : ''
+          };
+
+          if (rowData.id && rowData.name) {
+            itemDataMap[rowData.id] = rowData.name;
+          }
+
+          if (!rowData.category || !rowData.name) continue;
+
+          fullDataStore.push(rowData);
+
+          if (!categoryMap[rowData.category]) {
+            categoryMap[rowData.category] = [];
+          }
+
+          const path = [rowData.sub1, rowData.sub2, rowData.sub3].filter(item => item !== '');
+          path.push(rowData);
+          categoryMap[rowData.category].push(path);
+        }
+
+        globalCategoryMap = categoryMap;
+
+        itemList = [];
+        for (const item of fullDataStore) {
+          if (!item.id) continue;
+          const imgPath = `DD_1/DD_image/${item.id}.png`;
+          const exists = await checkImageExists(imgPath);
+          if (exists) {
+            itemList.push(imgPath);
+          }
+        }
+
+        remainingItemList = [...itemList];
+        renderCategoryTrees(categoryMap);
+      } catch (error) {
+        console.warn('DD_list.xlsx 로드 또는 파싱 실패:', error);
+      }
+    }
+
+    function hasNewStoredItem(nodeObj) {
+      if (nodeObj._isLeaf) {
+        return nodeObj._data && newStoredItemIds.has(nodeObj._data.id);
+      }
+      for (const key of Object.keys(nodeObj._children)) {
+        if (hasNewStoredItem(nodeObj._children[key])) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function hasAnyStoredItem(nodeObj) {
+      if (nodeObj._isLeaf) {
+        return nodeObj._data && storedItemIds.has(nodeObj._data.id);
+      }
+      const keys = Object.keys(nodeObj._children);
+      if (keys.length === 0) return false;
+      for (const key of keys) {
+        if (hasAnyStoredItem(nodeObj._children[key])) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function categoryHasNewItem(categoryName, categoryMap) {
+      const paths = categoryMap[categoryName];
+      if (!paths) return false;
+      for (const path of paths) {
+        const leafData = path[path.length - 1];
+        if (leafData && newStoredItemIds.has(leafData.id)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function renderCategoryTrees(categoryMap) {
+      const blocks = document.querySelectorAll('.index-block');
+      blocks.forEach(block => {
+        const titleElem = block.querySelector('.index-title');
+        let categoryName = block.getAttribute('data-category-name');
+        if (!categoryName) {
+          categoryName = titleElem.textContent.trim();
+          block.setAttribute('data-category-name', categoryName);
+        }
+
+        titleElem.innerHTML = '';
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = categoryName;
+        titleElem.appendChild(titleSpan);
+
+        if (categoryHasNewItem(categoryName, categoryMap)) {
+          const badgeSpan = document.createElement('span');
+          badgeSpan.className = 'n-badge';
+          badgeSpan.textContent = 'N';
+          titleElem.appendChild(badgeSpan);
+        }
+
+        const contentDiv = block.querySelector('.index-content');
+        const items = categoryMap[categoryName];
+
+        if (!items || items.length === 0) {
+          contentDiv.innerHTML = '<div class="tree-leaf indent-1">등록된 항목이 없습니다.</div>';
+          return;
+        }
+
+        const root = {};
+        items.forEach(path => {
+          let current = root;
+          path.forEach((node, idx) => {
+            const isLast = idx === path.length - 1;
+            const key = isLast ? node.name : node;
+
+            if (!current[key]) {
+              current[key] = { _isLeaf: isLast, _data: isLast ? node : null, _children: {} };
+            }
+            current = current[key]._children;
+          });
+        });
+
+        contentDiv.innerHTML = '';
+        contentDiv.appendChild(buildTreeDOM(root, 1));
+      });
+    }
+
+    function buildTreeDOM(nodeObj, depth) {
+      const fragment = document.createDocumentFragment();
+      const keys = Object.keys(nodeObj);
+
+      keys.forEach(key => {
+        const isLeaf = nodeObj[key]._isLeaf;
+        const currentIndentClass = `indent-${Math.min(depth, 4)}`;
+
+        if (isLeaf) {
+          const data = nodeObj[key]._data;
+          const isStored = data && storedItemIds.has(data.id);
+          const isNew = data && newStoredItemIds.has(data.id);
+
+          const leafDiv = document.createElement('div');
+          leafDiv.className = `tree-leaf ${currentIndentClass}`;
+
+          const textSpan = document.createElement('span');
+          textSpan.textContent = isStored ? data.name : '???';
+          leafDiv.appendChild(textSpan);
+
+          if (isStored && isNew) {
+            const badgeSpan = document.createElement('span');
+            badgeSpan.className = 'n-badge';
+            badgeSpan.textContent = 'N';
+            leafDiv.appendChild(badgeSpan);
+          }
+          
+          leafDiv.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (data && newStoredItemIds.has(data.id)) {
+              newStoredItemIds.delete(data.id);
+              renderCategoryTrees(globalCategoryMap);
+            }
+            displayItemDetail(data, isStored);
+          });
+
+          fragment.appendChild(leafDiv);
+        } else {
+          const nodeDiv = document.createElement('div');
+          nodeDiv.className = 'tree-node';
+
+          const titleDiv = document.createElement('div');
+          titleDiv.className = `tree-title ${currentIndentClass}`;
+          
+          const textSpan = document.createElement('span');
+          textSpan.textContent = key;
+          titleDiv.appendChild(textSpan);
+
+          if (hasNewStoredItem(nodeObj[key])) {
+            const badgeSpan = document.createElement('span');
+            badgeSpan.className = 'n-badge';
+            badgeSpan.textContent = 'N';
+            titleDiv.appendChild(badgeSpan);
+          }
+
+          const childrenDiv = document.createElement('div');
+          childrenDiv.className = 'tree-children';
+          childrenDiv.appendChild(buildTreeDOM(nodeObj[key]._children, depth + 1));
+
+          titleDiv.addEventListener('click', (e) => {
+            e.stopPropagation();
+            nodeDiv.classList.toggle('open');
+          });
+
+          nodeDiv.appendChild(titleDiv);
+          nodeDiv.appendChild(childrenDiv);
+          fragment.appendChild(nodeDiv);
+        }
+      });
+
+      return fragment;
+    }
+
+    function clearItemDetail() {
+      document.getElementById('view-path').textContent = '';
+      const nameElem = document.getElementById('view-name');
+      nameElem.textContent = '';
+
+      const imgElem = document.getElementById('view-image');
+      imgElem.src = '';
+      imgElem.style.display = 'none';
+
+      document.getElementById('view-label-item').style.display = 'none';
+      document.getElementById('view-real-name').textContent = '';
+      document.getElementById('view-comment').textContent = '';
+
+      document.getElementById('view-divider').style.display = 'none';
+
+      document.getElementById('view-label-quest').style.display = 'none';
+      document.getElementById('view-quest-title').textContent = '';
+      document.getElementById('view-quest-desc').textContent = '';
+      document.getElementById('view-quest-detail').textContent = '';
+
+      const giftBadge = document.getElementById('gift-badge');
+      giftBadge.style.display = 'none';
+
+      document.getElementById('status-sale').textContent = '???';
+      document.getElementById('status-second-gift').textContent = '???';
+      document.getElementById('status-discard').textContent = '???';
+
+      const saleIcon = document.getElementById('status-sale-icon');
+      if (saleIcon) { saleIcon.src = ''; saleIcon.style.display = 'none'; }
+      const secondGiftIcon = document.getElementById('status-second-gift-icon');
+      if (secondGiftIcon) { secondGiftIcon.src = ''; secondGiftIcon.style.display = 'none'; }
+      const discardIcon = document.getElementById('status-discard-icon');
+      if (discardIcon) { discardIcon.src = ''; discardIcon.style.display = 'none'; }
+
+      detailLeft.classList.remove('show-text');
+      detailRightNote.classList.remove('show-text');
+    }
+
+    function displayItemDetail(data, isStored) {
+      if (!data) return;
+
+      const giftBadge = document.getElementById('gift-badge');
+      const statusSale = document.getElementById('status-sale');
+      const statusSecondGift = document.getElementById('status-second-gift');
+      const statusDiscard = document.getElementById('status-discard');
+
+      const saleIcon = document.getElementById('status-sale-icon');
+      const secondGiftIcon = document.getElementById('status-second-gift-icon');
+      const discardIcon = document.getElementById('status-discard-icon');
+
+      if (!isStored) {
+        document.getElementById('view-path').textContent = '???';
+        document.getElementById('view-name').textContent = '???';
+        
+        const imgElem = document.getElementById('view-image');
+        imgElem.style.display = 'none';
+
+        const labelItem = document.getElementById('view-label-item');
+        labelItem.style.display = 'block';
+        document.getElementById('view-real-name').textContent = '???';
+        document.getElementById('view-comment').textContent = '???';
+
+        const dividerElem = document.getElementById('view-divider');
+        dividerElem.style.display = 'block';
+
+        const labelQuest = document.getElementById('view-label-quest');
+        labelQuest.style.display = 'block';
+        document.getElementById('view-quest-title').textContent = '???';
+        document.getElementById('view-quest-desc').textContent = '???';
+        document.getElementById('view-quest-detail').textContent = '???';
+
+        giftBadge.style.display = 'none';
+        statusSale.textContent = '???';
+        statusSecondGift.textContent = '???';
+        statusDiscard.textContent = '???';
+        if (saleIcon) { saleIcon.src = ''; saleIcon.style.display = 'none'; }
+        if (secondGiftIcon) { secondGiftIcon.src = ''; secondGiftIcon.style.display = 'none'; }
+        if (discardIcon) { discardIcon.src = ''; discardIcon.style.display = 'none'; }
+
+        detailLeft.classList.add('show-text');
+        detailRightNote.classList.add('show-text');
+        return;
+      }
+
+      if (data.gift === 'o') {
+        giftBadge.style.display = 'flex';
+      } else {
+        giftBadge.style.display = 'none';
+      }
+
+      statusSale.textContent = data.sale === 'o' ? '판매 가능' : (data.sale === 'x' ? '판매 금지' : '');
+      if (saleIcon) {
+        if (data.sale === 'o') {
+          saleIcon.src = 'DD_1/dd_icon/sell_o.png';
+          saleIcon.style.display = 'block';
+        } else if (data.sale === 'x') {
+          saleIcon.src = 'DD_1/dd_icon/sell_x.png';
+          saleIcon.style.display = 'block';
+        } else {
+          saleIcon.src = '';
+          saleIcon.style.display = 'none';
+        }
+      }
+
+      statusSecondGift.textContent = data.secondGift === 'o' ? '2차 증여 가능' : (data.secondGift === 'x' ? '2차 증여 금지' : '');
+      if (secondGiftIcon) {
+        if (data.secondGift === 'o') {
+          secondGiftIcon.src = 'DD_1/dd_icon/give_o.png';
+          secondGiftIcon.style.display = 'block';
+        } else if (data.secondGift === 'x') {
+          secondGiftIcon.src = 'DD_1/dd_icon/give_x.png';
+          secondGiftIcon.style.display = 'block'; // 오타 수정 완료
+        } else {
+          secondGiftIcon.src = '';
+          secondGiftIcon.style.display = 'none';
+        }
+      }
+
+      statusDiscard.textContent = data.discardable === 'o' ? '버리기 가능' : (data.discardable === 'x' ? '버리기 금지' : '');
+      if (discardIcon) {
+        if (data.discardable === 'x') {
+          discardIcon.src = 'DD_1/dd_icon/trash_x.png';
+          discardIcon.style.display = 'block';
+        } else {
+          discardIcon.src = '';
+          discardIcon.style.display = 'none';
+        }
+      }
+
+      const pathArray = [data.category, data.sub1];
+      if (data.sub2) pathArray.push(data.sub2);
+      if (data.sub3 && data.sub2) pathArray.push(data.sub3);
+      document.getElementById('view-path').textContent = pathArray.filter(Boolean).join(' >> ');
+
+      const nameElem = document.getElementById('view-name');
+      nameElem.textContent = data.name || '';
+
+      const imgElem = document.getElementById('view-image');
+      if (data.id) {
+        imgElem.src = `DD_1/DD_image/${data.id}.png`;
+        imgElem.style.display = 'block';
+      } else {
+        imgElem.style.display = 'none';
+      }
+
+      const labelItem = document.getElementById('view-label-item');
+      const realNameElem = document.getElementById('view-real-name');
+      if (data.realName) {
+        labelItem.style.display = 'block';
+        realNameElem.textContent = data.realName;
+      } else {
+        labelItem.style.display = 'none';
+        realNameElem.textContent = '';
+      }
+
+      const commentElem = document.getElementById('view-comment');
+      commentElem.textContent = data.comment || '';
+
+      const dividerElem = document.getElementById('view-divider');
+      const labelQuest = document.getElementById('view-label-quest');
+      const questTitleElem = document.getElementById('view-quest-title');
+
+      if (data.questTitle) {
+        dividerElem.style.display = 'block';
+        labelQuest.style.display = 'block';
+        questTitleElem.textContent = data.questTitle;
+      } else {
+        dividerElem.style.display = 'none';
+        labelQuest.style.display = 'none';
+        questTitleElem.textContent = '';
+      }
+
+      document.getElementById('view-quest-desc').textContent = data.questDesc || '';
+      
+      const rawQuestDetail = data.questDetail || '';
+      if (rawQuestDetail) {
+        const processedDetail = rawQuestDetail
+          .split(/\r?\n/)
+          .map(line => line.trim() ? `☻ ${line.trim()}` : '')
+          .join('\n');
+        document.getElementById('view-quest-detail').textContent = processedDetail;
+      } else {
+        document.getElementById('view-quest-detail').textContent = '';
+      }
+
+      detailLeft.classList.add('show-text');
+      detailRightNote.classList.add('show-text');
+    }
+
+    function isOverlapping(rectA, rectB, padding = 10) {
+      return !(
+        rectA.right + padding < rectB.left ||
+        rectA.left - padding > rectB.right ||
+        rectA.bottom + padding < rectB.top ||
+        rectA.top - padding > rectB.bottom
+      );
+    }
+
+    function getOverlapRatio(rectA, rectB) {
+      const interLeft = Math.max(rectA.left, rectB.left);
+      const interRight = Math.min(rectA.right, rectB.right);
+      const interTop = Math.max(rectA.top, rectB.top);
+      const interBottom = Math.min(rectA.bottom, rectB.bottom);
+
+      if (interLeft < interRight && interTop < interBottom) {
+        const interArea = (interRight - interLeft) * (interBottom - interTop);
+        const areaA = (rectA.right - rectA.left) * (rectA.bottom - rectA.top);
+        const areaB = (rectB.right - rectB.left) * (rectB.bottom - rectB.top);
+        return Math.max(interArea / areaA, interArea / areaB);
+      }
+      return 0;
+    }
+
+    function spawnItem() {
+      if (remainingItemList.length === 0) {
+        showAlert("더 이상 꺼낼 유품이 없다.");
+        return false;
+      }
+
+      const startX = 960 + 8;
+      const startY = 540;
+
+      const bedW = (bedImg.naturalHeight || 90) * 2.4;
+      const bedH = (bedImg.naturalHeight || 176) * 2.4;
+
+      const bedBound = {
+        left: startX - (bedW / 2),
+        right: startX + (bedW / 2),
+        top: startY - (bedH / 2),
+        bottom: startY + (bedH / 2)
+      };
+
+      let finalDropX = 0;
+      let finalDropY = 0;
+      let finalRotation = 0;
+      
+      const estimatedWidth = 60 * 2.4;
+      const estimatedHeight = 60 * 2.4;
+      const minTopY = 432 - (estimatedHeight * 0.2); 
+
+      let attempts = 0;
+      let validPositionFound = false;
+
+      while (attempts < 600 && !validPositionFound) {
+        const direction = Math.random() < 0.5 ? -1 : 1;
+        
+        finalDropX = (50 + Math.random() * 680) * direction;
+        finalDropY = -90 + Math.random() * 480; 
+        finalRotation = (Math.random() - 0.5) * 60;
+
+        const targetX = startX + finalDropX;
+        const targetY = startY + finalDropY;
+
+        const candidateBound = {
+          left: targetX - estimatedWidth / 2,
+          right: targetX + estimatedWidth / 2,
+          top: targetY - estimatedHeight / 2,
+          bottom: targetY + estimatedHeight / 2
+        };
+
+        const overlapsBlackBackground = candidateBound.top < minTopY;
+        const overlapsBed = isOverlapping(candidateBound, bedBound, 15);
+        
+        let hasExcessiveOverlap = false;
+        for (const pb of placedBounds) {
+          if (getOverlapRatio(candidateBound, pb) >= 0.2) {
+            hasExcessiveOverlap = true;
+            break;
+          }
+        }
+
+        if (!overlapsBlackBackground && !overlapsBed && !hasExcessiveOverlap) {
+          validPositionFound = true;
+          placedBounds.push(candidateBound);
+        }
+        attempts++;
+      }
+
+      if (!validPositionFound) return false;
+
+      const randomIndex = Math.floor(Math.random() * remainingItemList.length);
+      const imagePath = remainingItemList.splice(randomIndex, 1)[0];
+      
+      const fileNameMatch = imagePath.match(/\/([^\/]+)\.png$/i);
+      const itemId = fileNameMatch ? fileNameMatch[1].trim() : '';
+
+      const item = document.createElement('img');
+      item.src = imagePath;
+      item.classList.add('dropped-item');
+      item.setAttribute('data-item-id', itemId);
+      item.style.pointerEvents = 'none';
+
+      item.style.setProperty('--drop-x', `${finalDropX}px`);
+      item.style.setProperty('--drop-y', `${finalDropY}px`);
+      item.style.setProperty('--rot', `${finalRotation}deg`);
+
+      item.style.left = `${startX}px`;
+      item.style.top = `${startY}px`;
+
+      item.addEventListener('mouseenter', (e) => {
+        isHoveringItem = true;
+        currentActiveItem = item;
+        const displayText = itemDataMap[itemId] || `Item #${itemId}`;
+        tooltip.textContent = displayText;
+        tooltip.style.display = 'block';
+      });
+
+      item.addEventListener('mousemove', (e) => {
+        const rect = container.getBoundingClientRect();
+        const scale = rect.width / 1920; 
+        
+        const mouseX = (e.clientX - rect.left) / scale;
+        const mouseY = (e.clientY - rect.top) / scale;
+
+        tooltip.style.left = 'auto';
+        tooltip.style.top = 'auto';
+        tooltip.style.right = `${1920 - mouseX}px`;
+        tooltip.style.bottom = `${1080 - mouseY}px`;
+      });
+
+      item.addEventListener('mouseleave', (e) => {
+        isHoveringItem = false;
+        checkHideTooltipAndMenu();
+      });
+
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentActiveItem = item;
+
+        tooltip.style.display = 'none';
+
+        const rect = container.getBoundingClientRect();
+        const scale = rect.width / 1920; 
+        
+        const mouseX = (e.clientX - rect.left) / scale;
+        const mouseY = (e.clientY - rect.top) / scale;
+
+        itemMenu.style.left = `${mouseX}px`;
+        itemMenu.style.top = `${mouseY}px`;
+        itemMenu.style.right = 'auto';
+        itemMenu.style.bottom = 'auto';
+        itemMenu.style.display = 'block';
+      });
+
+      container.appendChild(item);
+
+      requestAnimationFrame(() => {
+        item.style.transform = `translate(-50%, -50%) translate(${finalDropX}px, ${finalDropY}px) scale(2.4) rotate(${finalRotation}deg)`;
+      });
+
+      setTimeout(() => {
+        item.style.pointerEvents = 'auto';
+      }, 800);
+
+      return true;
+    }
+
+    itemMenu.addEventListener('mouseenter', () => {
+      isHoveringMenu = true;
+    });
+
+    itemMenu.addEventListener('mouseleave', () => {
+      isHoveringMenu = false;
+      checkHideTooltipAndMenu();
+    });
+
+    itemMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = e.target.getAttribute('data-action');
+      if (!action || !currentActiveItem) return;
+
+      if (action === 'store') {
+        showAlert("드랍된 아이템을 상자에 넣어두었다.", 1000);
+        
+        const targetItem = currentActiveItem;
+        
+        if (targetItem) {
+          targetItem.style.pointerEvents = 'none';
+        }
+
+        const itemId = targetItem ? targetItem.getAttribute('data-item-id') : '';
+
+        if (itemId) {
+          storedItemIds.add(itemId);
+          newStoredItemIds.add(itemId);
+          renderCategoryTrees(globalCategoryMap);
+        }
+
+        hideMenuAndTooltip();
+
+        if (targetItem) {
+          targetItem.style.transition = 'opacity 0.5s ease';
+          targetItem.style.opacity = '0';
+          setTimeout(() => {
+            targetItem.remove();
+          }, 500);
+        }
+
+      } else if (action === 'discard') {
+        showAlert("버리기를 원하지 않는다.", 1000);
+        
+        const targetItem = currentActiveItem;
+        hideMenuAndTooltip();
+
+        if (targetItem) {
+          targetItem.classList.remove('shaking');
+          void targetItem.offsetWidth; 
+          targetItem.classList.add('shaking');
+          setTimeout(() => {
+            targetItem.classList.remove('shaking');
+          }, 500);
+        }
+
+      } else if (action === 'cancel') {
+        hideMenuAndTooltip();
+      }
+    });
+
+    bedImg.addEventListener('click', () => {
+      const now = Date.now();
+      clickTimes.push(now);
+      clickTimes = clickTimes.filter(t => now - t <= 1000);
+
+      if (clickTimes.length >= 3) {
+        showAlert("깨울 수 없는 것 같다.");
+        return;
+      }
+
+      if (isCooldown) {
+        showAlert("...");
+        return;
+      }
+
+      const success = spawnItem();
+
+      if (!success) {
+        return;
+      }
+
+      isCooldown = true;
+      setTimeout(() => {
+        isCooldown = false;
+      }, 2000);
+    });
+
+    function openBoxPanel() {
+      clearItemDetail();
+      boxPanel.classList.remove('closing-index');
+      boxPanel.classList.add('open');
+      container.classList.add('panel-open');
+      screenOverlay.classList.add('show');
+    }
+
+    function closeBoxPanel() {
+      detailLeft.classList.remove('show-text');
+      detailRightNote.classList.remove('show-text');
+      screenOverlay.classList.remove('show');
+
+      setTimeout(() => {
+        boxPanel.classList.add('closing-index');
+
+        setTimeout(() => {
+          boxPanel.classList.remove('open');
+          boxPanel.classList.remove('closing-index');
+          container.classList.remove('panel-open');
+          
+          setTimeout(() => {
+            clearItemDetail();
+          }, 1200);
+        }, 400);
+      }, 200);
+    }
+
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (boxPanel.classList.contains('open')) {
+        closeBoxPanel();
+      } else {
+        openBoxPanel();
+      }
+    });
+
+    boxPanel.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    function resizeCanvas() {
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      
+      const scaleX = windowWidth / 1920;
+      const scaleY = windowHeight / 1080;
+      const scale = Math.min(scaleX, scaleY);
+      
+      container.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      resizeCanvas();
+      loadExcelData();
+      initAccordion();
+      updateRingPosition();
+
+      if (bedImg.complete) {
+        updateRingPosition();
+      } else {
+        bedImg.addEventListener('load', updateRingPosition);
+      }
+
+      const indexBgImg = document.getElementById('index-bg-img');
+      if (indexBgImg.complete) {
+        adjustIndexContainerWidth();
+      } else {
+        indexBgImg.addEventListener('load', adjustIndexContainerWidth);
+      }
+    });
+    resizeCanvas();
+  </script>
+</body>
+</html>
